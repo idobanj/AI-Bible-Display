@@ -131,10 +131,11 @@ async function start(config = {}) {
     const scriptPath = path.join(__dirname, '..', '..', 'python', 'transcriber.py');
 
     const cfg = {
-      model: config.model || 'base.en',
+      model: config.model || 'small',
       device: config.device || 'cpu',
       compute_type: config.compute_type || 'int8',
-      audio_device: config.audioDevice || null
+      audio_device: config.audioDevice || null,
+      initial_prompt: config.initialPrompt || undefined
     };
 
     const spawnArgs = [

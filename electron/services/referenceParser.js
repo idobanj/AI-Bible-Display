@@ -212,7 +212,7 @@ function parseBibleReference(text) {
 
   const matchedAlias = bookMatch[1].toLowerCase();
   const canonicalBook = BOOK_ALIASES[matchedAlias];
-  const afterBook = text.slice(bookMatch.index + bookMatch[0].length);
+  const afterBook = text.slice(bookMatch.index + bookMatch[0].length).replace(/^[\s,;:.]+/, '');
 
   const rangeConnector = '(?:[-–—]|\\b(?:to|through|dash)\\b)';
   const versePrefix = '(?:verses?|v|vs|ver)?\\.?';

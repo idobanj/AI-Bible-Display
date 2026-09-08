@@ -181,18 +181,29 @@ export default function App() {
     }
   });
 
-  // Start listening with chosen audio device
-  const handleStartListening = async (deviceOverride = null) => {
+  // Whisper model selection state (persisted in localStorage, defaulting to 'small')
+  const [whisperModel, setWhisperModel] = useState(() => {
+    try {
+      return localStorage.getItem('churchscreen_whisper_model') || 'small';
+    } catch {
+      return 'small';
+    }
+  });
+
+  // Start listening with chosen audio device and model
+  const handleStartListening = async (deviceOverride = null, modelOverride = null) => {
     setNotice(null);
     setHasAudioError(false);
     try {
       const targetDev = deviceOverride || selectedAudioDevice;
+      const targetModel = modelOverride || whisperModel || 'small';
       const deviceArg = (targetDev && targetDev.index !== 'default' && targetDev.index !== null && targetDev.index !== undefined)
         ? Number(targetDev.index)
         : null;
 
       const config = {
-        audioDevice: deviceArg
+        audioDevice: deviceArg,
+        model: targetModel
       };
       const resp = await window.churchscreen?.startTranscription?.(config);
       if (resp && resp.error) {
@@ -224,6 +235,23 @@ export default function App() {
       setTimeout(() => {
         handleStartListening(device);
       }, 400);
+    }
+  };
+
+  // Switch Whisper model and optionally restart transcription live
+  const handleSelectWhisperModel = async (model) => {
+    setWhisperModel(model);
+    try {
+      localStorage.setItem('churchscreen_whisper_model', model);
+    } catch {}
+
+    if (listening) {
+      if (window.churchscreen?.stopTranscription) {
+        await window.churchscreen.stopTranscription();
+      }
+      setTimeout(() => {
+        handleStartListening(null, model);
+      }, 500);
     }
   };
 
@@ -332,6 +360,8 @@ export default function App() {
         onTestObsConnection={handleTestObsConnection}
         selectedAudioDevice={selectedAudioDevice}
         onSelectAudioDevice={handleSelectAudioDevice}
+        whisperModel={whisperModel}
+        onSelectWhisperModel={handleSelectWhisperModel}
         autoDisplay={autoDisplay}
         onToggleAutoDisplay={handleToggleAutoDisplay}
       />

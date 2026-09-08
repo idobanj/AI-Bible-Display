@@ -94,10 +94,24 @@ def main():
         sys.exit(0)
 
     config = json.loads(args.config)
-    model_size   = config.get("model", "base.en")
+    model_size   = config.get("model", "small")
     device       = config.get("device", "cpu")
     compute_type = config.get("compute_type", "int8")
     audio_device = config.get("audio_device", None)
+
+    SCRIPTURE_PROMPT = (
+        "Christian church sermon reading Holy Bible scripture: "
+        "1 Samuel, 2 Samuel, 1 Kings, 2 Kings, 1 Chronicles, 2 Chronicles, "
+        "Genesis, Exodus, Leviticus, Numbers, Deuteronomy, Joshua, Judges, Ruth, "
+        "Ezra, Nehemiah, Esther, Job, Psalms, Proverbs, Ecclesiastes, Song of Solomon, "
+        "Isaiah, Jeremiah, Lamentations, Ezekiel, Daniel, Hosea, Joel, Amos, Obadiah, "
+        "Jonah, Micah, Nahum, Habakkuk, Zephaniah, Haggai, Zechariah, Malachi, "
+        "Matthew, Mark, Luke, John, Acts, Romans, 1 Corinthians, 2 Corinthians, "
+        "Galatians, Ephesians, Philippians, Colossians, 1 Thessalonians, 2 Thessalonians, "
+        "1 Timothy, 2 Timothy, Titus, Philemon, Hebrews, James, 1 Peter, 2 Peter, "
+        "1 John, 2 John, 3 John, Jude, Revelation. Chapter and verse."
+    )
+    initial_prompt = config.get("initial_prompt", SCRIPTURE_PROMPT)
 
     # ---- Graceful shutdown --------------------------------------------------
     shutdown = threading.Event()
@@ -214,6 +228,7 @@ def main():
                         audio_buf,
                         beam_size=5,
                         language="en",
+                        initial_prompt=initial_prompt,
                         vad_filter=True,
                         vad_parameters=dict(
                             min_silence_duration_ms=600,

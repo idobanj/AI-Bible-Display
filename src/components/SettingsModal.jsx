@@ -8,6 +8,8 @@ export default function SettingsModal({
   onTestObsConnection,
   selectedAudioDevice,
   onSelectAudioDevice,
+  whisperModel = 'small',
+  onSelectWhisperModel,
   autoDisplay = false,
   onToggleAutoDisplay
 }) {
@@ -186,11 +188,21 @@ export default function SettingsModal({
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
               <div className="form-group">
-                <label>Model</label>
-                <select className="form-control" defaultValue="base.en">
-                  <option value="tiny.en">tiny.en (Fastest, low memory)</option>
-                  <option value="base.en">base.en (Recommended, balanced)</option>
-                  <option value="small.en">small.en (Higher accuracy)</option>
+                <label>Whisper Speech Model</label>
+                <select
+                  className="form-control"
+                  value={whisperModel || 'small'}
+                  onChange={(e) => {
+                    if (onSelectWhisperModel) {
+                      onSelectWhisperModel(e.target.value);
+                    }
+                  }}
+                >
+                  <option value="small">small (Recommended — Best for Accents)</option>
+                  <option value="base">base (Multilingual / Accents)</option>
+                  <option value="small.en">small.en (Standard English)</option>
+                  <option value="base.en">base.en (Standard English — Faster)</option>
+                  <option value="tiny.en">tiny.en (Fastest, low accuracy)</option>
                 </select>
               </div>
 
