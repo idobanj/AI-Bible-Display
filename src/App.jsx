@@ -130,6 +130,32 @@ export default function App() {
     };
   }, [detect]);
 
+  // On startup, load GROQ_API_KEY from .env if present and initialize defaults
+  useEffect(() => {
+    if (window.churchscreen?.getEnvKey) {
+      window.churchscreen.getEnvKey().then((envKey) => {
+        if (envKey && envKey.trim()) {
+          const key = envKey.trim();
+          setGroqApiKey((prev) => {
+            if (!prev) {
+              try { localStorage.setItem('churchscreen_groq_api_key', key); } catch {}
+              return key;
+            }
+            return prev;
+          });
+          setTranscriptionEngine((prev) => {
+            const saved = localStorage.getItem('churchscreen_transcription_engine');
+            if (!saved) {
+              try { localStorage.setItem('churchscreen_transcription_engine', 'groq'); } catch {}
+              return 'groq';
+            }
+            return prev;
+          });
+        }
+      }).catch(() => {});
+    }
+  }, []);
+
   // Toggle Hands-Free Auto-Display mode
   const handleToggleAutoDisplay = (enabled) => {
     setAutoDisplay(enabled);
@@ -190,21 +216,59 @@ export default function App() {
     }
   });
 
-  // Start listening with chosen audio device and model
-  const handleStartListening = async (deviceOverride = null, modelOverride = null) => {
+  // Transcription Engine selection: 'groq' (Cloud) | 'local' (Offline)
+  const [transcriptionEngine, setTranscriptionEngine] = useState(() => {
+    try {
+      const saved = localStorage.getItem('churchscreen_transcription_engine');
+      if (saved) return saved;
+      const key = localStorage.getItem('churchscreen_groq_api_key');
+      return key ? 'groq' : 'local';
+    } catch {
+      return 'local';
+    }
+  });
+
+  // Groq API Key
+  const [groqApiKey, setGroqApiKey] = useState(() => {
+    try {
+      return localStorage.getItem('churchscreen_groq_api_key') || '';
+    } catch {
+      return '';
+    }
+  });
+
+  // Groq Model
+  const [groqModel, setGroqModel] = useState(() => {
+    try {
+      return localStorage.getItem('churchscreen_groq_model') || 'whisper-large-v3';
+    } catch {
+      return 'whisper-large-v3';
+    }
+  });
+
+  // Start listening with chosen audio device, model, and engine
+  const handleStartListening = async (deviceOverride = null, modelOverride = null, engineOverride = null) => {
     setNotice(null);
     setHasAudioError(false);
     try {
+      const targetEngine = engineOverride || transcriptionEngine;
       const targetDev = deviceOverride || selectedAudioDevice;
       const targetModel = modelOverride || whisperModel || 'small';
+      const targetGroqKey = groqApiKey;
+      const targetGroqModel = groqModel || 'whisper-large-v3';
+
       const deviceArg = (targetDev && targetDev.index !== 'default' && targetDev.index !== null && targetDev.index !== undefined)
         ? Number(targetDev.index)
         : null;
 
       const config = {
-        audioDevice: deviceArg,
-        model: targetModel
+        engine: targetEngine,
+        groqApiKey: targetGroqKey ? targetGroqKey.trim() : '',
+        groqModel: targetGroqModel,
+        model: targetModel,
+        audioDevice: deviceArg
       };
+
       const resp = await window.churchscreen?.startTranscription?.(config);
       if (resp && resp.error) {
         setListening(false);
@@ -251,6 +315,48 @@ export default function App() {
       }
       setTimeout(() => {
         handleStartListening(null, model);
+      }, 500);
+    }
+  };
+
+  // Switch Transcription Engine (Groq vs Local)
+  const handleSelectTranscriptionEngine = async (engine) => {
+    setTranscriptionEngine(engine);
+    try {
+      localStorage.setItem('churchscreen_transcription_engine', engine);
+    } catch {}
+
+    if (listening) {
+      if (window.churchscreen?.stopTranscription) {
+        await window.churchscreen.stopTranscription();
+      }
+      setTimeout(() => {
+        handleStartListening(null, null, engine);
+      }, 500);
+    }
+  };
+
+  // Save Groq API Key
+  const handleSaveGroqApiKey = (key) => {
+    setGroqApiKey(key);
+    try {
+      localStorage.setItem('churchscreen_groq_api_key', key);
+    } catch {}
+  };
+
+  // Switch Groq model
+  const handleSelectGroqModel = async (model) => {
+    setGroqModel(model);
+    try {
+      localStorage.setItem('churchscreen_groq_model', model);
+    } catch {}
+
+    if (listening && transcriptionEngine === 'groq') {
+      if (window.churchscreen?.stopTranscription) {
+        await window.churchscreen.stopTranscription();
+      }
+      setTimeout(() => {
+        handleStartListening();
       }, 500);
     }
   };
@@ -350,6 +456,7 @@ export default function App() {
         status={status}
         listening={listening}
         audioDevice={selectedAudioDevice?.label || 'Default System Microphone'}
+        transcriptionEngine={transcriptionEngine}
       />
 
       {/* Settings Modal Sheet */}
@@ -360,10 +467,12 @@ export default function App() {
         onTestObsConnection={handleTestObsConnection}
         selectedAudioDevice={selectedAudioDevice}
         onSelectAudioDevice={handleSelectAudioDevice}
+        transcriptionEngine={transcriptionEngine}
+        onSelectTranscriptionEngine={handleSelectTranscriptionEngine}
+        groqModel={groqModel}
+        onSelectGroqModel={handleSelectGroqModel}
         whisperModel={whisperModel}
         onSelectWhisperModel={handleSelectWhisperModel}
-        autoDisplay={autoDisplay}
-        onToggleAutoDisplay={handleToggleAutoDisplay}
       />
 
       {/* Non-blocking Toast Feedback */}

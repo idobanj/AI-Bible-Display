@@ -12,9 +12,9 @@
   --text-primary: #F4F7FB;
   --text-secondary: #A7B7D1;
   --text-muted: #71829D;
-  --accent: #4F8CFF;
-  --accent-hover: #6A9FFF;
-  --accent-bg: rgba(79, 140, 255, 0.12);
+  --accent: #2d68c4;
+  --accent-hover: #2253a0;
+  --accent-bg: rgba(45, 104, 196, 0.12);
   --success: #28C76F;
   --success-bg: rgba(40, 199, 111, 0.14);
   --warning: #F5B942;
@@ -83,7 +83,7 @@ button {
 }
 
 button:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--border-strong);
   outline-offset: 2px;
 }
 
@@ -96,12 +96,12 @@ button:disabled {
 .btn-primary {
   background: var(--accent);
   color: #FFFFFF;
-  box-shadow: 0 2px 8px rgba(79, 140, 255, 0.3);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
 .btn-primary:hover:not(:disabled) {
   background: var(--accent-hover);
-  box-shadow: 0 4px 14px rgba(79, 140, 255, 0.45);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
   transform: translateY(-1px);
 }
 
@@ -199,9 +199,9 @@ button:disabled {
 }
 
 .badge-info {
-  background: var(--accent-bg);
-  color: var(--accent);
-  border: 1px solid rgba(79, 140, 255, 0.3);
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
 }
 
 .status-dot {
@@ -283,14 +283,14 @@ button:disabled {
 .brand-icon {
   width: 34px;
   height: 34px;
-  background: linear-gradient(135deg, #1E3A8A, #3B82F6);
-  border: 1px solid #60A5FA;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-strong);
   border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #FFFFFF;
-  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.35);
+  color: var(--text-primary);
+  box-shadow: none;
 }
 
 .brand-text {
@@ -311,11 +311,11 @@ button:disabled {
 .brand-mode {
   font-size: 0.68rem;
   font-weight: 600;
-  background: rgba(79, 140, 255, 0.15);
-  color: #8EB7FF;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-secondary);
   padding: 2px 7px;
   border-radius: 4px;
-  border: 1px solid rgba(79, 140, 255, 0.25);
+  border: 1px solid var(--border-subtle);
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
@@ -592,7 +592,7 @@ button:disabled {
 
 .test-input:focus {
   outline: none;
-  border-color: var(--accent);
+  border-color: var(--border-strong);
 }
 
 .sample-chips {
@@ -770,9 +770,9 @@ button:disabled {
 .translation-badge {
   font-size: 0.72rem;
   font-weight: 700;
-  background: rgba(79, 140, 255, 0.15);
-  color: #79A8FF;
-  border: 1px solid rgba(79, 140, 255, 0.3);
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
   padding: 2px 7px;
   border-radius: 4px;
 }
@@ -814,7 +814,7 @@ button:disabled {
   font-family: var(--font-mono);
   font-size: 0.8rem;
   font-weight: 700;
-  color: #60A5FA;
+  color: var(--text-secondary);
   margin-right: 6px;
   vertical-align: super;
 }
@@ -822,7 +822,7 @@ button:disabled {
 /* Transcript Attribution */
 .detection-attribution {
   background: rgba(12, 22, 38, 0.45);
-  border-left: 3px solid var(--accent);
+  border-left: 3px solid var(--border-strong);
   padding: 8px 12px;
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
   margin-bottom: 18px;
@@ -860,7 +860,7 @@ button:disabled {
 }
 
 .obs-target-name {
-  color: #8EB7FF;
+  color: var(--text-primary);
   font-weight: 600;
   font-family: var(--font-mono);
 }
@@ -1080,7 +1080,7 @@ button:disabled {
 
 .form-control:focus {
   outline: none;
-  border-color: var(--accent);
+  border-color: var(--border-strong);
 }
 
 .form-control:disabled {

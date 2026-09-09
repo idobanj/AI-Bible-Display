@@ -7,6 +7,7 @@ const { spawn, exec } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const readline = require('readline');
+const https = require('https');
 
 let child = null;
 let isRunning = false;
@@ -131,10 +132,13 @@ async function start(config = {}) {
     const scriptPath = path.join(__dirname, '..', '..', 'python', 'transcriber.py');
 
     const cfg = {
+      engine: config.engine || (process.env.GROQ_API_KEY ? 'groq' : 'local'),
+      groq_api_key: config.groqApiKey || process.env.GROQ_API_KEY || '',
+      groq_model: config.groqModel || 'whisper-large-v3',
       model: config.model || 'small',
       device: config.device || 'cpu',
       compute_type: config.compute_type || 'int8',
-      audio_device: config.audioDevice || null,
+      audio_device: config.audioDevice !== undefined ? config.audioDevice : null,
       initial_prompt: config.initialPrompt || undefined
     };
 
@@ -255,4 +259,58 @@ async function getAudioDevices() {
   });
 }
 
-module.exports = { setMainWindow, start, stop, getStatus, findWorkingPython, getAudioDevices };
+function validateGroqKey(apiKey) {
+  return new Promise((resolve) => {
+    if (!apiKey || typeof apiKey !== 'string' || !apiKey.trim()) {
+      return resolve({ valid: false, message: 'Please enter a Groq API key.' });
+    }
+
+    const key = apiKey.trim();
+    const options = {
+      hostname: 'api.groq.com',
+      port: 443,
+      path: '/openai/v1/models',
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${key}`,
+        'User-Agent': 'ChurchScreen-AI'
+      },
+      timeout: 8000
+    };
+
+    const req = https.request(options, (res) => {
+      let body = '';
+      res.on('data', (chunk) => { body += chunk; });
+      res.on('end', () => {
+        if (res.statusCode === 200) {
+          resolve({ valid: true, message: 'Groq API Key is valid and connected!' });
+        } else if (res.statusCode === 401) {
+          resolve({ valid: false, message: 'Invalid Groq API Key. Please check the key and try again.' });
+        } else {
+          resolve({ valid: false, message: `Groq response code ${res.statusCode}: ${res.statusMessage}` });
+        }
+      });
+    });
+
+    req.on('timeout', () => {
+      req.destroy();
+      resolve({ valid: false, message: 'Connection timed out while verifying Groq API Key.' });
+    });
+
+    req.on('error', (err) => {
+      resolve({ valid: false, message: `Network error: ${err.message}` });
+    });
+
+    req.end();
+  });
+}
+
+module.exports = {
+  setMainWindow,
+  start,
+  stop,
+  getStatus,
+  findWorkingPython,
+  getAudioDevices,
+  validateGroqKey
+};

@@ -4,6 +4,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('churchscreen', {
   // App & System Status
   getStatus: () => ipcRenderer.invoke('app:get-status'),
+  getEnvKey: () => ipcRenderer.invoke('app:get-env-key'),
 
   // Scripture & Transcription processing
   processTranscript: (text) => ipcRenderer.invoke('transcript:process', text),
@@ -16,6 +17,7 @@ contextBridge.exposeInMainWorld('churchscreen', {
   stopTranscription: () => ipcRenderer.invoke('transcription:stop'),
   getTranscriptionStatus: () => ipcRenderer.invoke('transcription:status'),
   getAudioDevices: () => ipcRenderer.invoke('transcription:get-audio-devices'),
+  validateGroqKey: (apiKey) => ipcRenderer.invoke('transcription:validate-groq-key', apiKey),
 
   // OBS Studio controls & settings
   displayVerse: (verse, config) => ipcRenderer.invoke('obs:display-verse', verse, config),

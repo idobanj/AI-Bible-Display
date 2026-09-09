@@ -5,7 +5,7 @@ const { openBibleDatabase } = require('../database/database');
 const { findVerse } = require('../database/bibleQueries');
 const { parseBibleReference } = require('../services/referenceParser');
 const { createObsClient } = require('../obs/obsClient');
-const { start, stop, getStatus, getAudioDevices } = require('../whisper/whisperService');
+const { start, stop, getStatus, getAudioDevices, validateGroqKey } = require('../whisper/whisperService');
 
 function registerHandlers(ipcMain, electronApp) {
   const userDataPath = electronApp.getPath('userData');
@@ -30,6 +30,9 @@ function registerHandlers(ipcMain, electronApp) {
     };
   });
 
+  // Expose environment GROQ_API_KEY if configured
+  ipcMain.handle('app:get-env-key', () => process.env.GROQ_API_KEY || '');
+
   // Transcript processing (finds reference and looks up scripture)
   ipcMain.handle('transcript:process', (_event, text) => {
     const reference = parseBibleReference(text);
@@ -53,6 +56,7 @@ function registerHandlers(ipcMain, electronApp) {
   ipcMain.handle('transcription:stop', () => stop());
   ipcMain.handle('transcription:status', () => getStatus());
   ipcMain.handle('transcription:get-audio-devices', () => getAudioDevices());
+  ipcMain.handle('transcription:validate-groq-key', (_event, apiKey) => validateGroqKey(apiKey));
 }
 
 module.exports = { registerHandlers };

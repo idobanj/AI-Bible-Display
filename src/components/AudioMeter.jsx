@@ -210,9 +210,9 @@ export default function AudioMeter({ listening, onAudioLevelChange }) {
                 padding: '0 8px',
                 fontSize: '0.72rem',
                 borderRadius: '4px',
-                background: testActive ? 'rgba(79, 140, 255, 0.2)' : 'var(--bg-elevated)',
-                borderColor: testActive ? 'var(--accent)' : 'var(--border-subtle)',
-                color: testActive ? 'var(--accent-hover)' : 'var(--text-secondary)'
+                background: testActive ? 'rgba(255, 255, 255, 0.12)' : 'var(--bg-elevated)',
+                borderColor: testActive ? 'var(--border-strong)' : 'var(--border-subtle)',
+                color: testActive ? 'var(--text-primary)' : 'var(--text-secondary)'
               }}
             >
               {testActive ? 'Stop Mic Test' : 'Test Mic Level'}

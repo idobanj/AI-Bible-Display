@@ -8,10 +8,12 @@ export default function SettingsModal({
   onTestObsConnection,
   selectedAudioDevice,
   onSelectAudioDevice,
+  transcriptionEngine = 'local',
+  onSelectTranscriptionEngine,
+  groqModel = 'whisper-large-v3',
+  onSelectGroqModel,
   whisperModel = 'small',
-  onSelectWhisperModel,
-  autoDisplay = false,
-  onToggleAutoDisplay
+  onSelectWhisperModel
 }) {
   const [obsHost, setObsHost] = useState('localhost');
   const [obsPort, setObsPort] = useState('4455');
@@ -182,40 +184,135 @@ export default function SettingsModal({
           {/* Transcription Engine Section */}
           <section className="settings-section">
             <div className="settings-section-title">
-              <span>2. Local Transcription (Whisper)</span>
-              <span className="badge badge-live">Offline-Ready</span>
+              <span>2. Speech Recognition Engine</span>
+              {transcriptionEngine === 'groq' ? (
+                <span className="badge badge-live">Groq Cloud LPU</span>
+              ) : (
+                <span className="badge badge-standby">Local Offline</span>
+              )}
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-              <div className="form-group">
-                <label>Whisper Speech Model</label>
-                <select
-                  className="form-control"
-                  value={whisperModel || 'small'}
-                  onChange={(e) => {
-                    if (onSelectWhisperModel) {
-                      onSelectWhisperModel(e.target.value);
-                    }
+            {/* Engine Selector Segmented Control */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '16px' }}>
+              <button
+                type="button"
+                className={`btn ${transcriptionEngine === 'groq' ? 'btn-primary' : 'btn-secondary'}`}
+                style={{
+                  padding: '10px 12px',
+                  textAlign: 'center',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: 600,
+                  fontSize: '0.88rem',
+                  borderColor: transcriptionEngine === 'groq' ? 'var(--border-strong)' : 'var(--border)'
+                }}
+                onClick={() => onSelectTranscriptionEngine && onSelectTranscriptionEngine('groq')}
+              >
+                Groq Cloud Whisper
+              </button>
+
+              <button
+                type="button"
+                className={`btn ${transcriptionEngine === 'local' ? 'btn-primary' : 'btn-secondary'}`}
+                style={{
+                  padding: '10px 12px',
+                  textAlign: 'center',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: 600,
+                  fontSize: '0.88rem',
+                  borderColor: transcriptionEngine === 'local' ? 'var(--border-strong)' : 'var(--border)'
+                }}
+                onClick={() => onSelectTranscriptionEngine && onSelectTranscriptionEngine('local')}
+              >
+                Local Offline
+              </button>
+            </div>
+
+            {/* Groq Cloud Configuration */}
+            {transcriptionEngine === 'groq' ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label>Cloud Speech Model</label>
+                    <select
+                      className="form-control"
+                      value={groqModel || 'whisper-large-v3'}
+                      onChange={(e) => {
+                        if (onSelectGroqModel) onSelectGroqModel(e.target.value);
+                      }}
+                    >
+                      <option value="whisper-large-v3">whisper-large-v3 (Maximum Accuracy · Recommended)</option>
+                      <option value="whisper-large-v3-turbo">whisper-large-v3-turbo (Turbo / Fastest)</option>
+                    </select>
+                  </div>
+
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label>Language</label>
+                    <select className="form-control" defaultValue="en" disabled>
+                      <option value="en">English (default)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    padding: '10px 14px',
+                    backgroundColor: 'rgba(52, 211, 153, 0.08)',
+                    borderRadius: '6px',
+                    border: '1px solid rgba(52, 211, 153, 0.25)',
+                    fontSize: '0.8rem',
+                    color: '#34d399'
                   }}
                 >
-                  <option value="small">small (Recommended — Best for Accents)</option>
-                  <option value="base">base (Multilingual / Accents)</option>
-                  <option value="small.en">small.en (Standard English)</option>
-                  <option value="base.en">base.en (Standard English — Faster)</option>
-                  <option value="tiny.en">tiny.en (Fastest, low accuracy)</option>
-                </select>
-              </div>
+                  <span style={{ fontSize: '1rem', fontWeight: 'bold' }}>✓</span>
+                  <span><strong>Groq Cloud Engine Active:</strong> Configured via environment. Real-time ~200ms speech recognition with 0% CPU strain on your PC.</span>
+                </div>
 
-              <div className="form-group">
-                <label>Language</label>
-                <select className="form-control" defaultValue="en" disabled>
-                  <option value="en">English (default)</option>
-                </select>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                  Audio is processed over secure TLS via Groq LPUs in the cloud. Superior recognition for diverse church sermon accents.
+                </div>
               </div>
-            </div>
-            <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-              Speech recognition runs 100% locally via faster-whisper without sending audio to the cloud.
-            </div>
+            ) : (
+              /* Local Offline Configuration */
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label>Local Whisper Model</label>
+                    <select
+                      className="form-control"
+                      value={whisperModel || 'small'}
+                      onChange={(e) => {
+                        if (onSelectWhisperModel) {
+                          onSelectWhisperModel(e.target.value);
+                        }
+                      }}
+                    >
+                      <option value="small">small (Recommended — Best for Accents)</option>
+                      <option value="base">base (Multilingual / Accents)</option>
+                      <option value="small.en">small.en (Standard English)</option>
+                      <option value="base.en">base.en (Standard English — Faster)</option>
+                      <option value="tiny.en">tiny.en (Fastest, low accuracy)</option>
+                    </select>
+                  </div>
+
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label>Language</label>
+                    <select className="form-control" defaultValue="en" disabled>
+                      <option value="en">English (default)</option>
+                    </select>
+                  </div>
+                </div>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                  Speech recognition runs 100% locally via faster-whisper on your PC CPU without requiring an internet connection.
+                </div>
+              </div>
+            )}
           </section>
 
           {/* Bible Database Section */}
@@ -272,30 +369,7 @@ export default function SettingsModal({
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
               <div className="form-group">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                  <label style={{ margin: 0 }}>WebSocket Password</label>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      try {
-                        const text = await navigator.clipboard.readText();
-                        if (text) setObsPassword(text.trim());
-                      } catch {}
-                    }}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: 'var(--accent)',
-                      cursor: 'pointer',
-                      fontSize: '0.74rem',
-                      padding: '0 2px',
-                      textDecoration: 'underline'
-                    }}
-                    title="Paste password from clipboard"
-                  >
-                    Paste
-                  </button>
-                </div>
+                <label>WebSocket Password</label>
                 <input
                   type="password"
                   className="form-control"
@@ -330,7 +404,7 @@ export default function SettingsModal({
                       background: 'rgba(255,255,255,0.08)',
                       border: '1px solid rgba(255,255,255,0.15)',
                       borderRadius: '4px',
-                      color: 'var(--accent)',
+                      color: 'var(--text-primary)',
                       padding: '2px 6px',
                       cursor: 'pointer',
                       fontSize: '0.75rem'
@@ -341,41 +415,6 @@ export default function SettingsModal({
                 ))}
               </div>
             )}
-
-            <div
-              style={{
-                margin: '12px 0 14px',
-                padding: '10px 14px',
-                background: autoDisplay ? 'rgba(40, 199, 111, 0.1)' : 'rgba(255, 255, 255, 0.04)',
-                border: `1px solid ${autoDisplay ? 'rgba(40, 199, 111, 0.35)' : 'var(--border-subtle)'}`,
-                borderRadius: 'var(--radius-sm)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease'
-              }}
-              onClick={() => onToggleAutoDisplay?.(!autoDisplay)}
-            >
-              <div>
-                <div style={{ fontWeight: 600, fontSize: '0.85rem', color: autoDisplay ? '#4ade80' : 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span>⚡ Auto-Display to OBS (Hands-Free Mode)</span>
-                  {autoDisplay && (
-                    <span className="badge badge-live" style={{ fontSize: '0.65rem', padding: '1px 6px' }}>Active</span>
-                  )}
-                </div>
-                <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)', marginTop: '3px' }}>
-                  Automatically broadcast detected verses to OBS without requiring operator confirmation.
-                </div>
-              </div>
-              <input
-                type="checkbox"
-                checked={!!autoDisplay}
-                onChange={(e) => onToggleAutoDisplay?.(e.target.checked)}
-                onClick={(e) => e.stopPropagation()}
-                style={{ width: '18px', height: '18px', accentColor: 'var(--success)', cursor: 'pointer' }}
-              />
-            </div>
 
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '4px' }}>
               <button
@@ -398,9 +437,9 @@ export default function SettingsModal({
                 fontSize: '0.8rem',
                 padding: '8px 12px',
                 borderRadius: '6px',
-                background: obsTestMessage.includes('Successfully') ? 'rgba(40, 199, 111, 0.15)' : 'rgba(79, 140, 255, 0.15)',
-                color: obsTestMessage.includes('Successfully') ? '#28c76f' : 'var(--accent)',
-                border: `1px solid ${obsTestMessage.includes('Successfully') ? 'rgba(40, 199, 111, 0.4)' : 'rgba(79, 140, 255, 0.3)'}`
+                background: obsTestMessage.includes('Successfully') ? 'rgba(40, 199, 111, 0.15)' : 'rgba(255, 255, 255, 0.08)',
+                color: obsTestMessage.includes('Successfully') ? '#28c76f' : 'var(--text-secondary)',
+                border: `1px solid ${obsTestMessage.includes('Successfully') ? 'rgba(40, 199, 111, 0.4)' : 'var(--border-subtle)'}`
               }}>
                 {obsTestMessage}
               </div>

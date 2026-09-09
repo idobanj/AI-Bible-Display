@@ -135,7 +135,7 @@ export default function LiveTranscriptPanel({
             Current Spoken Transcript
           </span>
           {transcript && (
-            <span style={{ fontSize: '0.7rem', color: 'var(--accent)', fontWeight: 600 }}>
+            <span style={{ fontSize: '0.7rem', color: 'var(--success)', fontWeight: 600 }}>
               Live
             </span>
           )}
@@ -151,7 +151,7 @@ export default function LiveTranscriptPanel({
                     display: 'inline-block',
                     width: '6px',
                     height: '14px',
-                    background: 'var(--accent)',
+                    background: 'var(--text-primary)',
                     marginLeft: '4px',
                     verticalAlign: 'middle',
                     animation: 'dotPulse 0.9s infinite'
@@ -199,7 +199,7 @@ export default function LiveTranscriptPanel({
                 title="Click to re-run detection on this phrase"
               >
                 <div className="history-meta">
-                  <span style={{ fontWeight: 600, color: item.detected ? 'var(--accent)' : 'var(--text-muted)' }}>
+                  <span style={{ fontWeight: 600, color: item.detected ? 'var(--success)' : 'var(--text-muted)' }}>
                     {item.detected ? `✓ ${item.detected.label || item.detected.book}` : 'Transcription'}
                   </span>
                   <span>{item.timestamp || 'Just now'}</span>

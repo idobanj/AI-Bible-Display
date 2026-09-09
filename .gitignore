@@ -1,1 +1,158 @@
-node_modules
+# ==========================================
+# 1. Environment Variables, Secrets & Credentials
+# ==========================================
+.env
+.env.local
+.env.*.local
+*.env
+!.env.example
+*.secret
+secrets/
+credentials.json
+token.json
+tokens.json
+service-account*.json
+
+# OBS Studio credentials & local configuration
+obs-settings.json
+*-settings.json
+config.local.json
+
+# Private keys and SSL certificates
+*.key
+*.pem
+*.crt
+*.cer
+*.pfx
+*.p12
+
+# ==========================================
+# 2. Python & Whisper Speech Recognition
+# ==========================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual Environments
+venv/
+.venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Whisper model cache and weights
+models/
+whisper_models/
+.cache/
+huggingface/
+*.bin
+*.pt
+*.onnx
+*.safetensors
+
+# Python tooling & test caches
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# ==========================================
+# 3. Audio & Media Files (Church Audio / Mic Dumps)
+# ==========================================
+# Prevents uploading live microphone captures or service audio
+*.wav
+*.mp3
+*.m4a
+*.flac
+*.aac
+*.ogg
+*.wma
+recordings/
+audio_cache/
+
+# ==========================================
+# 4. Database Journals & Local User Data
+# ==========================================
+# SQLite runtime lock and WAL files
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
+user_data/
+userData/
+
+# ==========================================
+# 5. Node.js & Package Managers
+# ==========================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+.pnpm-debug.log*
+.npm/
+
+# ==========================================
+# 6. Build, Packaging & Installer Artifacts
+# ==========================================
+out/
+release/
+dist-electron/
+*.exe
+*.msi
+*.dmg
+*.pkg
+*.AppImage
+*.deb
+*.rpm
+*.zip
+*.tar.gz
+
+# ==========================================
+# 7. Operating System & Local Metadata
+# ==========================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Thumbs.db:encryptable
+desktop.ini
+$RECYCLE.BIN/
+
+# ==========================================
+# 8. IDEs, Editors & Tooling
+# ==========================================
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*~
+*.bak
+*.orig
+tmp/
+temp/
+scratch/
+*.tmp
+
+# ==========================================
+# 9. Logs & Runtime Diagnostics
+# ==========================================
+*.log
+logs/

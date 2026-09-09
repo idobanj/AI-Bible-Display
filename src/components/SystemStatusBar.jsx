@@ -1,26 +1,32 @@
 // src/components/SystemStatusBar.jsx
 import React from 'react';
 
-export default function SystemStatusBar({ status, listening, audioDevice = 'Default Microphone' }) {
+export default function SystemStatusBar({
+  status,
+  listening,
+  audioDevice = 'Default Microphone',
+  transcriptionEngine = 'local'
+}) {
   // DB status
   const dbText = status.database || 'Database checking…';
   const isDbReady = dbText.toLowerCase().includes('ready');
 
   // Transcription status
-  let transcriptionText = 'Whisper ready';
+  const engineLabel = transcriptionEngine === 'groq' ? 'Groq Cloud' : 'Local Whisper';
+  let transcriptionText = `${engineLabel} ready`;
   let transcriptionDot = 'green';
   if (listening) {
-    transcriptionText = 'Whisper listening';
+    transcriptionText = `${engineLabel} listening`;
     transcriptionDot = 'green pulse';
   } else if (status.transcription) {
     if (status.transcription.toLowerCase().includes('not-configured') || status.transcription.toLowerCase().includes('stopped')) {
-      transcriptionText = 'Whisper standby';
+      transcriptionText = `${engineLabel} standby`;
       transcriptionDot = 'gray';
     } else if (status.transcription.toLowerCase().includes('running')) {
-      transcriptionText = 'Whisper ready';
+      transcriptionText = `${engineLabel} ready`;
       transcriptionDot = 'green';
     } else {
-      transcriptionText = `Whisper ${status.transcription}`;
+      transcriptionText = `${engineLabel} ${status.transcription}`;
       transcriptionDot = 'amber';
     }
   }
