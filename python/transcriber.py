@@ -54,6 +54,16 @@ def rms_level(audio_array):
     return min(rms * 5.0, 1.0)
 
 
+def resample_audio(audio_chunk, orig_sr, target_sr=16000):
+    """Resamples a 1D float32 audio array from orig_sr to target_sr using linear interpolation."""
+    if orig_sr == target_sr or len(audio_chunk) == 0:
+        return audio_chunk
+    target_len = int(round(len(audio_chunk) * (target_sr / orig_sr)))
+    orig_times = np.linspace(0, 1.0, len(audio_chunk), endpoint=False)
+    target_times = np.linspace(0, 1.0, target_len, endpoint=False)
+    return np.interp(target_times, orig_times, audio_chunk).astype(np.float32)
+
+
 def float32_to_wav_bytes(audio_array, sample_rate=16000):
     """Converts a float32 numpy array into standard 16-bit PCM WAV bytes."""
     int16_data = np.clip(audio_array * 32767.0, -32768, 32767).astype(np.int16)
@@ -133,6 +143,9 @@ def main():
                         hostapi_name = sd.query_hostapis(d['hostapi'])['name']
                     except Exception:
                         pass
+                    # Skip Windows WDM-KS and incompatible kernel streaming devices
+                    if "wdm-ks" in hostapi_name.lower():
+                        continue
                     label = d['name']
                     if hostapi_name:
                         label = f"{d['name']} ({hostapi_name})"
@@ -156,20 +169,10 @@ def main():
     device       = config.get("device", "cpu")
     compute_type = config.get("compute_type", "int8")
     audio_device = config.get("audio_device", None)
+    beam_size    = int(config.get("beam_size", 5))
+    vad_filter   = bool(config.get("vad_filter", False))
 
-    SCRIPTURE_PROMPT = (
-        "Holy Bible scripture reading in church: "
-        "Genesis, Exodus, Leviticus, Numbers, Deuteronomy, Joshua, Judges, Ruth, "
-        "1 Samuel, 2 Samuel, 1 Kings, 2 Kings, 1 Chronicles, 2 Chronicles, "
-        "Ezra, Nehemiah, Esther, Job, Psalms, Proverbs, Ecclesiastes, Song of Solomon, "
-        "Isaiah, Jeremiah, Lamentations, Ezekiel, Daniel, Hosea, Joel, Amos, Obadiah, "
-        "Jonah, Micah, Nahum, Habakkuk, Zephaniah, Haggai, Zechariah, Malachi, "
-        "Matthew, Mark, Luke, John, Acts, Romans, 1 Corinthians, 2 Corinthians, "
-        "Galatians, Ephesians, Philippians, Colossians, 1 Thessalonians, 2 Thessalonians, "
-        "1 Timothy, 2 Timothy, Titus, Philemon, Hebrews, James, 1 Peter, 2 Peter, "
-        "1 John, 2 John, 3 John, Jude, Revelation."
-    )
-    initial_prompt = config.get("initial_prompt", SCRIPTURE_PROMPT)
+    initial_prompt = config.get("initial_prompt", "")
 
     # ---- Graceful shutdown --------------------------------------------------
     shutdown = threading.Event()
@@ -229,7 +232,7 @@ def main():
 
     audio_q = queue.Queue()
 
-    def _audio_callback(indata, _frames, _time_info, status):
+    def _audio_callback(indata, _frames, _time_info, status, capture_sr=SAMPLE_RATE):
         if status:
             emit({"type": "warning", "message": f"Audio callback: {status}"})
         # If input has multiple channels (e.g. quad-array Realtek mic), average across channels to produce mono
@@ -237,49 +240,100 @@ def main():
             mono = np.mean(indata, axis=1)
         else:
             mono = indata[:, 0] if indata.ndim > 1 else indata.flatten()
+        if capture_sr != SAMPLE_RATE:
+            mono = resample_audio(mono, capture_sr, SAMPLE_RATE)
         audio_q.put(mono.astype(np.float32).copy())
 
     # ---- Open audio stream --------------------------------------------------
     device_arg = int(audio_device) if audio_device is not None else None
 
-    # If no specific device was provided or "default" requested, find the primary active physical microphone
-    if device_arg is None:
+    def _try_open_stream(dev_idx):
+        """Attempts to open an InputStream for dev_idx, testing native sample rates."""
+        native_sr = None
+        dev_channels = 1
         try:
-            devs = sd.query_devices()
-            for idx, d in enumerate(devs):
-                name = d.get("name", "").lower()
-                ch = d.get("max_input_channels", 0)
-                # Select the real hardware microphone, avoiding silent virtual sound mappers
-                if ch > 0 and "microphone" in name and "mapper" not in name:
-                    device_arg = idx
-                    break
+            if dev_idx is not None:
+                info = sd.query_devices(dev_idx, "input")
+            else:
+                info = sd.query_devices(kind="input")
+            dev_channels = max(1, int(info.get("max_input_channels", 1)))
+            native_sr = int(info.get("default_samplerate", 0))
         except Exception:
             pass
 
-    # Query device native channels so PortAudio opens without channel mismatch errors
-    try:
-        dev_info = sd.query_devices(device_arg, "input")
-        stream_channels = max(1, int(dev_info.get("max_input_channels", 1)))
-    except Exception:
-        stream_channels = 1
+        # Rates to attempt: 16000 (direct), native device rate (WASAPI 48k/44.1k), then standard rates
+        candidate_rates = [SAMPLE_RATE]
+        if native_sr and native_sr not in candidate_rates:
+            candidate_rates.append(native_sr)
+        for r in (48000, 44100):
+            if r not in candidate_rates:
+                candidate_rates.append(r)
 
-    try:
-        stream = sd.InputStream(
-            samplerate=SAMPLE_RATE,
-            channels=stream_channels,
-            dtype="float32",
-            blocksize=BLOCK_SIZE,
-            device=device_arg,
-            callback=_audio_callback,
-        )
-        stream.start()
-    except Exception as exc:
+        last_err = None
+        for test_sr in candidate_rates:
+            block_sz = int(test_sr * BLOCK_DURATION_S)
+            try:
+                test_stream = sd.InputStream(
+                    samplerate=test_sr,
+                    channels=dev_channels,
+                    dtype="float32",
+                    blocksize=block_sz,
+                    device=dev_idx,
+                    callback=lambda indata, frames, time_info, status, s=test_sr: _audio_callback(indata, frames, time_info, status, s),
+                )
+                test_stream.start()
+                return test_stream, dev_idx, test_sr, dev_channels
+            except Exception as e:
+                last_err = e
+                continue
+        raise last_err or RuntimeError("No compatible sample rate found")
+
+    stream = None
+    stream_sr = SAMPLE_RATE
+    stream_channels = 1
+    actual_device = device_arg
+
+    # Step 1: Try requested device if specified
+    if device_arg is not None:
+        try:
+            stream, actual_device, stream_sr, stream_channels = _try_open_stream(device_arg)
+        except Exception as exc:
+            emit({"type": "warning",
+                  "message": f"Requested audio device #{device_arg} failed ({exc}). Falling back to default microphone."})
+            stream = None
+
+    # Step 2: Fallback to system default or first functional microphone
+    if stream is None:
+        try:
+            stream, actual_device, stream_sr, stream_channels = _try_open_stream(None)
+        except Exception:
+            # Try searching available input devices (excluding WDM-KS)
+            try:
+                devs = sd.query_devices()
+                for idx, d in enumerate(devs):
+                    if d.get("max_input_channels", 0) > 0:
+                        hostapi_name = ""
+                        try:
+                            hostapi_name = sd.query_hostapis(d['hostapi'])['name']
+                        except Exception:
+                            pass
+                        if "wdm-ks" in hostapi_name.lower():
+                            continue
+                        try:
+                            stream, actual_device, stream_sr, stream_channels = _try_open_stream(idx)
+                            break
+                        except Exception:
+                            continue
+            except Exception:
+                pass
+
+    if stream is None:
         emit({"type": "error",
-              "message": f"Failed to open audio device: {exc}"})
+              "message": "Failed to open audio device: No functional audio input device found."})
         sys.exit(1)
 
     emit({"type": "status", "state": "listening",
-          "message": f"Audio capture started (device={device_arg}, channels={stream_channels}). Listening…"})
+          "message": f"Audio capture started (device={actual_device}, rate={stream_sr}Hz, channels={stream_channels}). Listening…"})
 
     # ---- Transcription loop -------------------------------------------------
     audio_buf          = np.empty((0,), dtype=np.float32)
@@ -363,16 +417,16 @@ def main():
                     try:
                         segments, _info = model.transcribe(
                             audio_buf,
-                            beam_size=5,
+                            beam_size=beam_size,
                             language="en",
-                            initial_prompt=initial_prompt,
+                            initial_prompt=initial_prompt if initial_prompt else None,
                             condition_on_previous_text=False,
                             no_speech_threshold=0.6,
-                            vad_filter=True,
+                            vad_filter=vad_filter,
                             vad_parameters=dict(
                                 min_silence_duration_ms=600,
                                 speech_pad_ms=250,
-                            ),
+                            ) if vad_filter else None,
                         )
                         for seg in segments:
                             text = seg.text.strip()

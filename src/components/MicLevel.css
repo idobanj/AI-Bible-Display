@@ -33,20 +33,18 @@
   height: 9px;
   border-radius: 50%;
   background-color: #64748b;
-  transition: background-color 0.25s ease, box-shadow 0.25s ease;
+  transition: background-color 0.25s ease;
   flex-shrink: 0;
 }
 
 .mic-dot.live {
   background-color: #22c55e;
-  box-shadow: 0 0 10px #22c55e;
-  animation: micPulse 1.8s infinite;
+  box-shadow: none;
 }
 
 .mic-dot.loading {
   background-color: #eab308;
-  box-shadow: 0 0 8px #eab308;
-  animation: micPulse 1.2s infinite;
+  box-shadow: none;
 }
 
 @keyframes micPulse {
@@ -136,13 +134,13 @@
 }
 
 .mic-bar.active {
-  background: linear-gradient(180deg, #4ade80, #22c55e);
-  box-shadow: 0 0 5px rgba(34, 197, 94, 0.4);
+  background: #22c55e;
+  box-shadow: none;
 }
 
 .mic-bar.peak {
-  background: linear-gradient(180deg, #facc15, #22c55e);
-  box-shadow: 0 0 6px rgba(250, 204, 21, 0.5);
+  background: #eab308;
+  box-shadow: none;
 }
 
 .mic-error {

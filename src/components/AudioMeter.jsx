@@ -241,14 +241,11 @@ export default function AudioMeter({ listening, onAudioLevelChange }) {
 
           if (isLive && height > 10) {
             if (height > 80) {
-              bg = 'linear-gradient(180deg, #F05D5E, #F5B942)';
-              shadow = '0 0 4px rgba(240, 93, 94, 0.5)';
+              bg = '#F05D5E';
             } else if (height > 55) {
-              bg = 'linear-gradient(180deg, #F5B942, #28C76F)';
-              shadow = '0 0 4px rgba(245, 185, 66, 0.4)';
+              bg = '#F5B942';
             } else {
-              bg = 'linear-gradient(180deg, #38EF7D, #28C76F)';
-              shadow = '0 0 3px rgba(40, 199, 111, 0.3)';
+              bg = '#28C76F';
             }
           }
 

@@ -73,7 +73,7 @@ export default function App() {
             if (response?.sent) {
               setNotice({
                 type: 'success',
-                message: `⚡ Auto-displayed ${res.verse.reference} in OBS`
+                message: `Auto-displayed ${res.verse.reference} in OBS`
               });
             } else if (response?.message) {
               setNotice({
@@ -166,8 +166,8 @@ export default function App() {
     setNotice({
       type: enabled ? 'success' : 'info',
       message: enabled
-        ? '⚡ Auto-Display enabled: Recognized scriptures will automatically push to OBS.'
-        : '✋ Auto-Display disabled: Manual operator verification required.'
+        ? 'Auto-Display enabled: Recognized scriptures will automatically push to OBS.'
+        : 'Auto-Display disabled: Manual operator verification required.'
     });
   };
 

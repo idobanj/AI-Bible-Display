@@ -88,7 +88,7 @@ export default function LiveTranscriptPanel({
 
             {listening && (
               <span className="timer-tag" title="Listening duration">
-                ⏱ {formatTimer(elapsedSeconds)}
+                {formatTimer(elapsedSeconds)}
               </span>
             )}
           </div>
@@ -200,7 +200,7 @@ export default function LiveTranscriptPanel({
               >
                 <div className="history-meta">
                   <span style={{ fontWeight: 600, color: item.detected ? 'var(--success)' : 'var(--text-muted)' }}>
-                    {item.detected ? `✓ ${item.detected.label || item.detected.book}` : 'Transcription'}
+                    {item.detected ? (item.detected.label || item.detected.book) : 'Transcription'}
                   </span>
                   <span>{item.timestamp || 'Just now'}</span>
                 </div>

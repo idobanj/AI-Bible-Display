@@ -139,7 +139,9 @@ async function start(config = {}) {
       device: config.device || 'cpu',
       compute_type: config.compute_type || 'int8',
       audio_device: config.audioDevice !== undefined ? config.audioDevice : null,
-      initial_prompt: config.initialPrompt || undefined
+      initial_prompt: config.initialPrompt !== undefined ? config.initialPrompt : '',
+      vad_filter: config.vadFilter !== undefined ? config.vadFilter : false,
+      beam_size: config.beamSize !== undefined ? config.beamSize : 5
     };
 
     const spawnArgs = [

@@ -137,7 +137,10 @@ export default function SettingsModal({
             aria-label="Close settings"
             style={{ width: '32px', height: '32px' }}
           >
-            ✕
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
           </button>
         </div>
 
@@ -263,14 +266,13 @@ export default function SettingsModal({
                     alignItems: 'center',
                     gap: '10px',
                     padding: '10px 14px',
-                    backgroundColor: 'rgba(52, 211, 153, 0.08)',
+                    backgroundColor: 'rgba(255, 255, 255, 0.04)',
                     borderRadius: '6px',
-                    border: '1px solid rgba(52, 211, 153, 0.25)',
+                    border: '1px solid var(--border-subtle)',
                     fontSize: '0.8rem',
-                    color: '#34d399'
+                    color: 'var(--text-secondary)'
                   }}
                 >
-                  <span style={{ fontSize: '1rem', fontWeight: 'bold' }}>✓</span>
                   <span><strong>Groq Cloud Engine Active:</strong> Configured via environment. Real-time ~200ms speech recognition with 0% CPU strain on your PC.</span>
                 </div>
 
@@ -293,11 +295,13 @@ export default function SettingsModal({
                         }
                       }}
                     >
-                      <option value="small">small (Recommended — Best for Accents)</option>
-                      <option value="base">base (Multilingual / Accents)</option>
+                      <option value="medium">medium (High Accuracy · 16GB RAM recommended)</option>
+                      <option value="small">small (Standard — Balanced)</option>
+                      <option value="base">base (Multilingual / Fast)</option>
                       <option value="small.en">small.en (Standard English)</option>
                       <option value="base.en">base.en (Standard English — Faster)</option>
                       <option value="tiny.en">tiny.en (Fastest, low accuracy)</option>
+                      <option value="large-v3">large-v3 (Maximum Accuracy · Heavy on CPU)</option>
                     </select>
                   </div>
 

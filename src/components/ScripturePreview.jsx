@@ -23,7 +23,7 @@ export default function ScripturePreview({
         />
         <span className="switch-slider" />
         <span className={`switch-text ${autoDisplay ? 'active' : ''}`}>
-          {autoDisplay ? '⚡ Auto-Display ON' : 'Manual'}
+          {autoDisplay ? 'Auto-Display ON' : 'Manual'}
         </span>
       </label>
     </div>
@@ -55,7 +55,7 @@ export default function ScripturePreview({
             <span className={`status-dot ${autoDisplay ? 'green' : 'gray'}`} />
             <span>
               {autoDisplay
-                ? '⚡ Auto-Display Active: Verses push to OBS automatically'
+                ? 'Auto-Display Active: Verses push to OBS automatically'
                 : 'Manual Mode: Click "Display in OBS" to push verses'}
             </span>
           </div>
@@ -138,7 +138,7 @@ export default function ScripturePreview({
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               {autoDisplay && (
                 <span className="badge badge-live" style={{ fontSize: '0.68rem', padding: '3px 8px' }}>
-                  ⚡ Auto-Pushed
+                  Auto-Pushed
                 </span>
               )}
               <span className="confidence-tag" title="Matched canonical reference">
@@ -215,7 +215,7 @@ export default function ScripturePreview({
             </svg>
             <span>
               Target: <span className="obs-target-name">OBS Text Layer</span>
-              {autoDisplay ? ' (⚡ Auto-Sync Active)' : ' (Manual Mode)'}
+              {autoDisplay ? ' (Auto-Sync Active)' : ' (Manual Mode)'}
             </span>
           </div>
         </div>
