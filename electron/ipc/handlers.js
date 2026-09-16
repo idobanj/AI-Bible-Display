@@ -3,9 +3,12 @@
 
 const { openBibleDatabase } = require('../database/database');
 const { findVerse } = require('../database/bibleQueries');
-const { parseBibleReference } = require('../services/referenceParser');
+const { parseBibleReference, resetActiveContext } = require('../services/referenceParser');
 const { createObsClient } = require('../obs/obsClient');
 const { start, stop, getStatus, getAudioDevices, validateGroqKey } = require('../whisper/whisperService');
+
+let recentTranscriptBuffer = '';
+let bufferClearTimer = null;
 
 function registerHandlers(ipcMain, electronApp) {
   const userDataPath = electronApp.getPath('userData');
@@ -34,13 +37,41 @@ function registerHandlers(ipcMain, electronApp) {
   ipcMain.handle('app:get-env-key', () => process.env.GROQ_API_KEY || '');
 
   // Transcript processing (finds reference and looks up scripture)
+  // Evaluates both the current segment and recent rolling buffer to stitch split phrases
   ipcMain.handle('transcript:process', (_event, text) => {
-    const reference = parseBibleReference(text);
+    if (!text || typeof text !== 'string') {
+      return { transcript: '', detected: null, verse: null };
+    }
+
+    const trimmed = text.trim();
+    // 1. Try matching the current segment alone
+    let reference = parseBibleReference(trimmed);
+
+    // 2. If no match and we have a recent preceding segment, try the combined rolling window
+    if (!reference && recentTranscriptBuffer) {
+      const combined = `${recentTranscriptBuffer} ${trimmed}`.trim();
+      reference = parseBibleReference(combined);
+    }
+
+    // Update rolling buffer (keep last ~30 words, clear after 12 seconds of silence)
+    recentTranscriptBuffer = trimmed.split(/\s+/).slice(-25).join(' ');
+    if (bufferClearTimer) clearTimeout(bufferClearTimer);
+    bufferClearTimer = setTimeout(() => {
+      recentTranscriptBuffer = '';
+    }, 12000);
+
     return {
       transcript: text,
       detected: reference,
       verse: reference ? findVerse(db, reference) : null
     };
+  });
+
+  // Reset context manually or when new service session starts
+  ipcMain.handle('reference:reset-context', () => {
+    resetActiveContext();
+    recentTranscriptBuffer = '';
+    return { reset: true };
   });
 
   // OBS actions and configuration

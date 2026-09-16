@@ -185,9 +185,40 @@ function buildRef(book, chapter, startVerse, endVerse) {
     book,
     chapter,
     startVerse,
-    endVerse,
+    endVerse: endVerse || startVerse,
     label: `${book} ${chapter}:${startVerse}${isRange ? `-${endVerse}` : ''}`
   };
+}
+
+// Common natural conversational phrases used by preachers between book/chapter and verse
+// e.g. "and I'm reading from verse 23", "we're looking at verse 33", "let's read verse 6 first"
+const FILLER_PHRASES = `[\\s,;]+(?:and\\s+)?(?:(?:we|i)(?:'re|'m|\\s+are|\\s+am)?\\s+)?(?:reading|looking|turning|read|look|start|starting|come)?(?:\\s+(?:from|at|to|in))?|(?:[\\s,;]+let(?:'s|\\s+us)?(?:\\s+read)?)|(?:[\\s,;]+and)|(?:[\\s,;]+from)|(?:[\\s,;]+we're\\s+reading(?:\\s+from)?)|(?:[\\s,;]+we're\\s+looking(?:\\s+at)?)|(?:[\\s,;]+i'm\\s+reading(?:\\s+from)?)`;
+
+// Active session context to remember the last detected book and chapter
+let activeSessionContext = {
+  book: null,
+  chapter: null,
+  lastUpdated: 0
+};
+
+function setActiveContext(book, chapter) {
+  activeSessionContext = {
+    book,
+    chapter,
+    lastUpdated: Date.now()
+  };
+}
+
+function getActiveContext() {
+  // Context expires after 10 minutes of silence/inactivity
+  if (Date.now() - activeSessionContext.lastUpdated > 10 * 60 * 1000) {
+    activeSessionContext = { book: null, chapter: null, lastUpdated: 0 };
+  }
+  return activeSessionContext;
+}
+
+function resetActiveContext() {
+  activeSessionContext = { book: null, chapter: null, lastUpdated: 0 };
 }
 
 /**
@@ -199,103 +230,209 @@ function buildRef(book, chapter, startVerse, endVerse) {
  *  - "John 3 verse 16", "John 3 16"
  *  - "1 Corinthians 13:4-8", "First Corinthians 13:4"
  *  - "Jude 24", "Jude verse 24" (single-chapter books)
- *  - Spoken number words: "John chapter three verse sixteen"
+ *  - Spoken conversational preaching phrases:
+ *      "Acts chapter 16 and I'm reading from verse 23"
+ *      "Acts chapter 16 we're looking at verse 23"
+ *      "Colossians chapter 3 I'm reading from verse 16"
+ *      "Exodus chapter 15 let's read verse 6 first"
+ *      "Now look at Joshua chapter 2 we're reading from verse 9"
+ *  - Subsequent contextual verses in the same chapter:
+ *      "In verse 24...", "Look at verse 26...", "Come to verse 11...", "Verse 17..."
  *
  * @param {string} text - Raw input text from speech transcription or user input
+ * @param {Object} [contextOverride] - Optional { book, chapter } context
  * @returns {Object|null} { book, chapter, startVerse, endVerse, label } or null
  */
-function parseBibleReference(text) {
+function parseBibleReference(text, contextOverride = null) {
   if (!text || typeof text !== 'string') return null;
 
-  const bookMatch = text.match(BOOK_REGEX);
-  if (!bookMatch) return null;
-
-  const matchedAlias = bookMatch[1].toLowerCase();
-  const canonicalBook = BOOK_ALIASES[matchedAlias];
-  const afterBook = text.slice(bookMatch.index + bookMatch[0].length).replace(/^[\s,;:.]+/, '');
-
-  const rangeConnector = '(?:[-–—]|\\b(?:to|through|dash)\\b)';
+  const context = contextOverride || getActiveContext();
+  const rangeConnector = '(?:[-–—]|\\b(?:to|through|dash|thru|until)\\b)';
   const versePrefix = '(?:verses?|v|vs|ver)?\\.?';
 
-  // 1. Single-chapter books without chapter number: e.g. "Jude 24", "Jude verse 24", "Jude 4-8"
-  if (SINGLE_CHAPTER_BOOKS.has(canonicalBook)) {
-    // Check if explicit chapter 1:24 is provided first
-    const fullPattern = new RegExp(
-      `^\\s*(?:chapter|ch|c)?\\.?\\s*(\\d+|[a-z -]+?)\\s*[:.]\\s*${versePrefix}\\s*(\\d+|[a-z -]+?)(?:\\s*${rangeConnector}\\s*${versePrefix}\\s*(\\d+|[a-z -]+?))?(?:\\b|[^\\d\\w]|$)`,
-      'i'
-    );
-    const mFull = afterBook.match(fullPattern);
-    if (mFull) {
-      const chapter = parseNumber(mFull[1]);
-      const startVerse = parseNumber(mFull[2]);
-      const endVerse = mFull[3] ? parseNumber(mFull[3]) : startVerse;
-      if (chapter && startVerse && endVerse) {
-        return buildRef(canonicalBook, chapter, startVerse, endVerse);
+  // 1. First, check if a full book is mentioned in the text
+  const bookMatch = text.match(BOOK_REGEX);
+  if (bookMatch) {
+    const matchedAlias = bookMatch[1].toLowerCase();
+    const canonicalBook = BOOK_ALIASES[matchedAlias];
+    const afterBook = text.slice(bookMatch.index + bookMatch[0].length).replace(/^[\s,;:.]+/, '');
+
+    // Single-chapter books (Jude, Philemon, 2 John, 3 John, Obadiah)
+    if (SINGLE_CHAPTER_BOOKS.has(canonicalBook)) {
+      // e.g. "Jude chapter 1 reading from verse 14" or "Jude 1:14"
+      const scFull = new RegExp(
+        `^\\s*(?:chapter|ch|c)?\\.?\\s*(\\d+|[a-z -]+?)\\s*[:.]\\s*${versePrefix}\\s*(\\d+|[a-z -]+?)(?:\\s*${rangeConnector}\\s*${versePrefix}\\s*(\\d+|[a-z -]+?))?`,
+        'i'
+      );
+      const mScFull = afterBook.match(scFull);
+      if (mScFull) {
+        const ch = parseNumber(mScFull[1]);
+        const sv = parseNumber(mScFull[2]);
+        const ev = mScFull[3] ? parseNumber(mScFull[3]) : sv;
+        if (ch && sv) {
+          setActiveContext(canonicalBook, ch);
+          return buildRef(canonicalBook, ch, sv, ev);
+        }
+      }
+
+      // Spoken filler in single-chapter book: "Jude chapter 1 reading from verse 14"
+      const scSpoken = new RegExp(
+        `^\\s*(?:chapter|ch|c)?\\.?\\s*(\\d+|[a-z]+(?:\\s+[a-z]+)?)(?:${FILLER_PHRASES})+[\\s,;]+(?:verses?|v|vs|ver)\\.?\\s*(\\d+|[a-z]+(?:\\s+[a-z]+)?)(?:\\s*${rangeConnector}\\s*${versePrefix}\\s*(\\d+|[a-z -]+?))?`,
+        'i'
+      );
+      const mScSpoken = afterBook.match(scSpoken);
+      if (mScSpoken) {
+        const ch = parseNumber(mScSpoken[1]);
+        const sv = parseNumber(mScSpoken[2]);
+        const ev = mScSpoken[3] ? parseNumber(mScSpoken[3]) : sv;
+        if (ch && sv) {
+          setActiveContext(canonicalBook, ch);
+          return buildRef(canonicalBook, ch, sv, ev);
+        }
+      }
+
+      // Single chapter books shorthand: "Jude 14", "Jude verse 14", "Jude 14 to 16"
+      const scVerseOnly = new RegExp(
+        `^\\s*(?:verses?|v|vs|ver)?\\.?\\s*(\\d+|[a-z -]+?)(?:\\s*${rangeConnector}\\s*${versePrefix}\\s*(\\d+|[a-z -]+?))?`,
+        'i'
+      );
+      const mScVerse = afterBook.match(scVerseOnly);
+      if (mScVerse) {
+        const sv = parseNumber(mScVerse[1]);
+        const ev = mScVerse[2] ? parseNumber(mScVerse[2]) : sv;
+        if (sv) {
+          setActiveContext(canonicalBook, 1);
+          return buildRef(canonicalBook, 1, sv, ev);
+        }
       }
     }
 
-    // Single chapter books shorthand: treat first number as verse in chapter 1
-    const singlePat = new RegExp(
-      `^\\s*${versePrefix}\\s*(\\d+|[a-z -]+?)(?:\\s*${rangeConnector}\\s*${versePrefix}\\s*(\\d+|[a-z -]+?))?(?:\\b|[^\\d\\w]|$)`,
+    // Standard notation: "John 3:16", "John 3.16", "John 3:16-18", "John 3:16 to 18"
+    const colonPattern = new RegExp(
+      `^\\s*(?:chapter|ch|c)?\\.?\\s*(\\d+|[a-z -]+?)\\s*[:.]\\s*${versePrefix}\\s*(\\d+|[a-z -]+?)(?:\\s*${rangeConnector}\\s*${versePrefix}\\s*(\\d+|[a-z -]+?))?`,
       'i'
     );
-    const mSingle = afterBook.match(singlePat);
-    if (mSingle) {
-      const startVerse = parseNumber(mSingle[1]);
-      const endVerse = mSingle[2] ? parseNumber(mSingle[2]) : startVerse;
-      if (startVerse && endVerse) {
-        return buildRef(canonicalBook, 1, startVerse, endVerse);
+    const mColon = afterBook.match(colonPattern);
+    if (mColon) {
+      const ch = parseNumber(mColon[1]);
+      const sv = parseNumber(mColon[2]);
+      const ev = mColon[3] ? parseNumber(mColon[3]) : sv;
+      if (ch && sv) {
+        setActiveContext(canonicalBook, ch);
+        return buildRef(canonicalBook, ch, sv, ev);
+      }
+    }
+
+    // Natural spoken patterns WITH preaching conversational filler:
+    // e.g.:
+    // "Acts chapter 16 and I'm reading from verse 23"
+    // "Acts chapter 16 we're looking at verse 23"
+    // "Colossians chapter 3 I'm reading from verse 16"
+    // "Exodus chapter 15 let's read verse 6 first"
+    // "Joshua chapter 2 we're reading from verse 9"
+    // "Matthew chapter 28 we're reading from verse 18"
+    const spokenFillerPattern = new RegExp(
+      `^\\s*(?:chapter|ch|c)?\\.?\\s*(\\d+|[a-z]+(?:\\s+[a-z]+)?)(?:${FILLER_PHRASES})+[\\s,;]+(?:verses?|v|vs|ver)\\.?\\s*(\\d+|[a-z]+(?:\\s+[a-z]+)?)(?:\\s*${rangeConnector}\\s*${versePrefix}\\s*(\\d+|[a-z -]+?))?`,
+      'i'
+    );
+    const mSpokenFiller = afterBook.match(spokenFillerPattern);
+    if (mSpokenFiller) {
+      const ch = parseNumber(mSpokenFiller[1]);
+      const sv = parseNumber(mSpokenFiller[2]);
+      const ev = mSpokenFiller[3] ? parseNumber(mSpokenFiller[3]) : sv;
+      if (ch && sv) {
+        setActiveContext(canonicalBook, ch);
+        return buildRef(canonicalBook, ch, sv, ev);
+      }
+    }
+
+    // Standard spoken pattern without filler: "John chapter 3 verse 16", "John 3 verse 16"
+    const spokenPattern = new RegExp(
+      `^\\s*(?:chapter|ch|c)?\\.?\\s*(\\d+|[a-z -]+?)[\\s,]+(?:verses?|v|vs|ver)\\.?\\s*(\\d+|[a-z -]+?)(?:\\s*${rangeConnector}\\s*${versePrefix}\\s*(\\d+|[a-z -]+?))?`,
+      'i'
+    );
+    const mSpoken = afterBook.match(spokenPattern);
+    if (mSpoken) {
+      const ch = parseNumber(mSpoken[1]);
+      const sv = parseNumber(mSpoken[2]);
+      const ev = mSpoken[3] ? parseNumber(mSpoken[3]) : sv;
+      if (ch && sv) {
+        setActiveContext(canonicalBook, ch);
+        return buildRef(canonicalBook, ch, sv, ev);
+      }
+    }
+
+    // Space-separated numbers without punctuation: "John 3 16", "John 3 16 to 18"
+    const spacePattern = new RegExp(
+      `^\\s*(\\d{1,3})\\s+(\\d{1,3})(?:\\s*${rangeConnector}\\s*(\\d{1,3}))?`,
+      'i'
+    );
+    const mSpace = afterBook.match(spacePattern);
+    if (mSpace) {
+      const ch = parseInt(mSpace[1], 10);
+      const sv = parseInt(mSpace[2], 10);
+      const ev = mSpace[3] ? parseInt(mSpace[3], 10) : sv;
+      if (ch >= 1 && ch <= 150 && sv >= 1 && sv <= 176) {
+        setActiveContext(canonicalBook, ch);
+        return buildRef(canonicalBook, ch, sv, ev);
+      }
+    }
+
+    // Chapter-only introduction: e.g. "Exodus chapter 15", "in Colossians 3"
+    // Sets active context and defaults to verse 1
+    const chapterOnlyPattern = /^\s*(?:chapter|ch|c)\.?\s*(\d+|[a-z -]+?)(?:[^\d\w]|$)/i;
+    const mChOnly = afterBook.match(chapterOnlyPattern);
+    if (mChOnly) {
+      const ch = parseNumber(mChOnly[1]);
+      if (ch && ch >= 1 && ch <= 150) {
+        setActiveContext(canonicalBook, ch);
+        return buildRef(canonicalBook, ch, 1, 1);
       }
     }
   }
 
-  // 2. Standard format with colon or dot: "John 3:16", "John 3.16", "John 3:16-18", "John 3:16 to 18"
-  const colonPattern = new RegExp(
-    `^\\s*(?:chapter|ch|c)?\\.?\\s*(\\d+|[a-z -]+?)\\s*[:.]\\s*${versePrefix}\\s*(\\d+|[a-z -]+?)(?:\\s*${rangeConnector}\\s*${versePrefix}\\s*(\\d+|[a-z -]+?))?(?:\\b|[^\\d\\w]|$)`,
-    'i'
-  );
-  const mColon = afterBook.match(colonPattern);
-  if (mColon) {
-    const chapter = parseNumber(mColon[1]);
-    const startVerse = parseNumber(mColon[2]);
-    const endVerse = mColon[3] ? parseNumber(mColon[3]) : startVerse;
-    if (chapter && startVerse && endVerse) {
-      return buildRef(canonicalBook, chapter, startVerse, endVerse);
+  // 2. Contextual standalone verse references (when preacher is already reading in an announced chapter)
+  // e.g. "In verse 24...", "Look at verse 26...", "Come to verse 11...", "Verse 17..."
+  if (context && context.book && context.chapter) {
+    // Check for chapter change without repeating book name: "in chapter 16 verse 2"
+    const chVersePattern = new RegExp(
+      `(?:in\\s+)?(?:chapter|ch|c)\\.?\\s*(\\d+|[a-z -]+?)(?:${FILLER_PHRASES}|[\\s,;]+)+(?:verses?|v|vs|ver)\\.?\\s*(\\d+|[a-z -]+?)(?:\\s*${rangeConnector}\\s*${versePrefix}\\s*(\\d+|[a-z -]+?))?`,
+      'i'
+    );
+    const mChV = text.match(chVersePattern);
+    if (mChV) {
+      const ch = parseNumber(mChV[1]);
+      const sv = parseNumber(mChV[2]);
+      const ev = mChV[3] ? parseNumber(mChV[3]) : sv;
+      if (ch && sv) {
+        setActiveContext(context.book, ch);
+        return buildRef(context.book, ch, sv, ev);
+      }
     }
-  }
 
-  // 3. Spoken format: "John chapter 3 verse 16", "John 3 verse 16", "John chapter 3 verses 16 to 18"
-  const spokenPattern = new RegExp(
-    `^\\s*(?:chapter|ch|c)?\\.?\\s*(\\d+|[a-z -]+?)[\\s,]+(?:verses?|v|vs)\\.?\\s*(\\d+|[a-z -]+?)(?:\\s*${rangeConnector}\\s*${versePrefix}\\s*(\\d+|[a-z -]+?))?(?:\\b|[^\\d\\w]|$)`,
-    'i'
-  );
-  const mSpoken = afterBook.match(spokenPattern);
-  if (mSpoken) {
-    const chapter = parseNumber(mSpoken[1]);
-    const startVerse = parseNumber(mSpoken[2]);
-    const endVerse = mSpoken[3] ? parseNumber(mSpoken[3]) : startVerse;
-    if (chapter && startVerse && endVerse) {
-      return buildRef(canonicalBook, chapter, startVerse, endVerse);
-    }
-  }
-
-  // 4. Space separated numbers without punctuation: "John 3 16", "John 3 16 to 18"
-  const spacePattern = new RegExp(
-    `^\\s*(\\d{1,3})\\s+(\\d{1,3})(?:\\s*${rangeConnector}\\s*(\\d{1,3}))?(?:\\b|[^\\d\\w]|$)`,
-    'i'
-  );
-  const mSpace = afterBook.match(spacePattern);
-  if (mSpace) {
-    const chapter = parseInt(mSpace[1], 10);
-    const startVerse = parseInt(mSpace[2], 10);
-    const endVerse = mSpace[3] ? parseInt(mSpace[3], 10) : startVerse;
-    // Sanity boundary check for chapters and verses in the Bible
-    if (chapter >= 1 && chapter <= 150 && startVerse >= 1 && startVerse <= 176) {
-      return buildRef(canonicalBook, chapter, startVerse, endVerse);
+    // Verse-only reference within the active book and chapter:
+    // e.g. "look at verse 24", "in verse 26", "verse 17", "come to verse 11", "in the next verse, verse 26"
+    const verseOnlyPattern = new RegExp(
+      `\\b(?:look\\s+at|in|at|come\\s+to|let's\\s+read|read)?\\s*verses?\\s*(\\d+|[a-z -]+?)(?:\\s*${rangeConnector}\\s*${versePrefix}\\s*(\\d+|[a-z -]+?))?(?:\\b|[^\\d\\w]|$)`,
+      'i'
+    );
+    const mVOnly = text.match(verseOnlyPattern);
+    if (mVOnly) {
+      const sv = parseNumber(mVOnly[1]);
+      const ev = mVOnly[2] ? parseNumber(mVOnly[2]) : sv;
+      if (sv && sv >= 1 && sv <= 176) {
+        return buildRef(context.book, context.chapter, sv, ev);
+      }
     }
   }
 
   return null;
 }
 
-module.exports = { parseBibleReference, BOOK_ALIASES };
+module.exports = {
+  parseBibleReference,
+  BOOK_ALIASES,
+  setActiveContext,
+  getActiveContext,
+  resetActiveContext
+};

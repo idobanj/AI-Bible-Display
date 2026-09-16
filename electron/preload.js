@@ -8,6 +8,7 @@ contextBridge.exposeInMainWorld('churchscreen', {
 
   // Scripture & Transcription processing
   processTranscript: (text) => ipcRenderer.invoke('transcript:process', text),
+  resetReferenceContext: () => ipcRenderer.invoke('reference:reset-context'),
   onTranscriptionEvent: (callback) => {
     const handler = (_event, data) => callback(data);
     ipcRenderer.on('transcription-event', handler);
